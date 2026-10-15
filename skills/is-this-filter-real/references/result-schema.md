@@ -26,6 +26,9 @@ One JSON object per run. Charts, tables and the verdict are all rendered from it
   "significance": {"pValue": 0.55, "pValueHolm": 1.0, "iterations": 499, "blockCount": 53, "seed": 42,
                    "grid": "default percentileSteps", "family": ["vrp.vrp_0945", "vrp.vrp5_0945", "vrp.iv_0945"],
                    "outsideFamily": []},
+  "regimes": {"field": "vix_ma_z", "edges": [-1.5, -0.5, 0.5, 1.5], "lookbacks": {
+    "10": [{"bucket": "z <= -1.5", "trades": 76, "totalPl": 6840, "avgPl": 90, "winRate": 0.62}],
+    "20": [{"bucket": "z <= -1.5", "trades": 90, "totalPl": 5940, "avgPl": 66, "winRate": 0.61}]}},
   "checks": [{"name": "Plateau stable", "result": "region of 1 threshold", "flag": "WARN"}],
   "verdict": "…"
 }
@@ -37,4 +40,5 @@ Field notes:
 - `eligible`: kept fraction ≥ `rule.minKeptFraction`.
 - `flags`: any of `boundary`, `cliff`, `flat`, `narrow_region`, `u_shape`, `rule_dependent`.
 - `years`: from `filter_curve` `perYear` (full-sample threshold applied per year); mark partial years and `lowSampleWarning` rows in the verdict.
+- `regimes`: descriptive only; buckets derived from `filter_curve` rows at the stated edges; `null` when no regime field is available.
 - `significance`: copied from `filter_curve` `permutation` for the candidate; `family` lists the fields in that one request (the Holm family), `outsideFamily` the fields tried elsewhere.
