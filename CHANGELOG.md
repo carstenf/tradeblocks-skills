@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **`vrp-daily` (new).** Computes the daily volatility risk premium of a 0DTE ATM straddle at a fixed entry time: implied vol from the straddle premium of a straddle block (existing, or a new Option Omega backtest after consent), realized vol from the underlying's minute bars from entry to the close, VRP = IV − RV. Imports the result with `import_daily_dataset` (IV open-timed at the entry time, RV/VRP close-timed). Small Python script with unit tests; can move into TradeBlocks if preferred.
+
 ## 4.0.0
 
 Released with [TradeBlocks 4.0.0](https://github.com/tradeblocks-org/tradeblocks/blob/master/releases/v4.0.0.md) and Option Omega's MCP server. The plugin version now follows TradeBlocks' major version. Existing installs pinned to 1.0.0 update to this release.

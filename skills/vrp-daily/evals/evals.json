@@ -1,0 +1,29 @@
+[
+  {
+    "skills": ["vrp-daily"],
+    "query": "Compute the daily VRP at 09:45 for SPX since 2022-06 and make it available as a dataset.",
+    "expected_behavior": [
+      "Finds the existing 09:45 0DTE ATM straddle block and uses its tradelog.csv",
+      "Runs --check, fills missing minute bars with fetch_bars or reports them",
+      "Imports iv with open timing and knownBy 09:45, rv/vrp columns with close timing, and verifies with list_daily_datasets"
+    ]
+  },
+  {
+    "skills": ["vrp-daily"],
+    "query": "I need the VRP for a 14:00 entry.",
+    "expected_behavior": [
+      "Finds no straddle block at 14:00",
+      "Explains that a new Option Omega backtest uses the user's allowance and asks for consent before running it",
+      "After consent, imports the backtest via oo-capture or CSV export and computes with --entry 14:00"
+    ]
+  },
+  {
+    "skills": ["vrp-daily"],
+    "query": "Use today's VRP to decide whether to enter at 09:45.",
+    "expected_behavior": [
+      "Explains that rv and vrp are only known after the close",
+      "Offers iv (known at entry) or prior-day vrp instead",
+      "Does not present same-day vrp as usable at entry"
+    ]
+  }
+]
