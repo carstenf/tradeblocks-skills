@@ -91,11 +91,7 @@ For the top day `d`, call `filter_curve` with `thresholds: [centre]` on `[start,
 
 **7d. Trade count.** Kept trades per year at the centre; under 25 per year is thin.
 
-**7e. Regime overview (descriptive, optional).** If a regime field is available (e.g. VIX distance from its moving average as % or z-score, as a built-in field or an imported dataset), show how the block behaves per regime as context. Use **fixed bucket edges stated in advance** (e.g. below −20 %, −20 to −5 %, ±5 %, +5 to +20 %, above +20 %, or z ≤ −1.5, −1.5 to −0.5, ±0.5, 0.5 to 1.5, ≥ 1.5), never edges fitted to the result, and show **two lookbacks** (e.g. 10 and 20 days) side by side.
-
-Get the numbers from TradeBlocks: call `filter_curve` on the regime field with `mode: "both"` and `thresholds` set to the bucket edges; a bucket is the difference between adjacent `gt` rows (count, total P&L, win rate), and the outer buckets are the first `lt` and last `gt` rows. Table: regime, trades, total P&L, avg P&L, win rate. Statistics the server does not return per bucket (median, standard deviation) are left out, not estimated.
-
-Read it as description, not a test: buckets differ in size, nothing here is selection-adjusted, and if the bucket ranking changes between the two lookbacks the regime story depends on the lookback. Do not title a regime view with a claim such as "X is the best regime"; describe what was observed. A per-regime test of the filter needs a per-group breakdown from the server; until then report "per-regime filter test: not run (server lacks it)".
+**7e. Regime context (descriptive, optional).** When volatility regimes matter to the question, show how the block performs per regime, using the server's regime breakdown (e.g. `analyze_regime_performance`) or a regime field the user supplies. State the regime definition before looking, and check one alternative definition chosen in advance (another lookback or other bucket edges). Report whether the ranking of regimes holds under both. This is context, not a test: buckets differ in size and nothing is selection-adjusted. If the server cannot break results down by the chosen regime, say so and propose it for the server rather than assembling buckets by hand; a per-regime test of the filter is reported as "not run" until the server supports it.
 
 ### 8. Build the result and show it
 
@@ -105,7 +101,7 @@ Views:
 1. **Threshold curve**: Δ vs. threshold per direction, stable region shaded, best and centre marked, 20 % floor shown.
 2. **Per year**: Δ best and Δ centre per year.
 3. **Robustness**: Δ full history and without the top day; Δ per kept trade in the first and second half.
-4. **Regime overview** (if 7e ran): the bucket table for both lookbacks side by side.
+4. **Regime context** (if 7e ran): performance per regime under both definitions.
 
 Render with what the client offers: if it can draw charts (artifacts, inline visuals), draw them from the result object; otherwise, if Python with matplotlib is available, run `python3 scripts/render_charts.py result.json <outdir>` and attach the PNGs; otherwise show the views as tables. The verdict never depends on a chart.
 
@@ -148,5 +144,5 @@ A failed permutation or single-day check outweighs any number of passing in-samp
 - Don't ignore uncovered or stale trades; they change the baseline.
 - Don't read `confidence` from `suggest_filters` as statistical significance.
 - Don't hide a U-shape behind the better tail.
-- Don't title a chart or table with a conclusion the tests did not establish (e.g. "X is the best regime"); title it with what it shows.
+- Don't title a chart or table with a conclusion the tests did not establish; title it with what it shows.
 - Don't stack correlated filters (e.g. VIX level and VIX percentile); test one at a time.

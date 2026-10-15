@@ -38,14 +38,14 @@ One chronological split guards against choosing the threshold with knowledge of 
 
 A large p (e.g. 0.5) means sweeps on shuffled data routinely find a threshold as good as the observed one: the best threshold is what searching produces, not evidence of an edge.
 
-## Regime overviews
+## Regime context
 
-A table of block performance per volatility regime (e.g. VIX distance from its moving average) is useful context: it shows where the P&L comes from. It is not evidence for a filter:
+A breakdown of block performance by volatility regime shows where the P&L comes from. It is context, not evidence for a filter:
 
-- Bucket edges must be fixed in advance; edges chosen after seeing the result are another search.
-- Buckets differ in size, and tail buckets are often small; a high average on 50–130 days can be a few large days.
-- Show two lookbacks. If the ranking of buckets changes between them (e.g. the best bucket at 20 days is third at 10 days), the regime effect depends on the lookback and should be reported as such.
-- Nothing in the table is selection-adjusted. Word titles and captions as observations, not conclusions.
+- Fix the regime definition (lookback, bucket edges) before looking; a definition chosen after seeing the result is another search.
+- Check one alternative definition chosen in advance. If the ranking of regimes changes, the regime story depends on the definition; report it that way.
+- Tail buckets are often small; a high average on a few dozen days can be a few large days.
+- Nothing in the breakdown is selection-adjusted. Word titles and captions as observations.
 
 ## Multiple testing
 
