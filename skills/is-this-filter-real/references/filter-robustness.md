@@ -38,6 +38,19 @@ One chronological split guards against choosing the threshold with knowledge of 
 
 A large p (e.g. 0.5) means sweeps on shuffled data routinely find a threshold as good as the observed one: the best threshold is what searching produces, not evidence of an edge.
 
+## Skip filters and risk reduction
+
+Many filters are meant to skip rare bad days, not to raise P&L. They usually cost some P&L and cut the drawdown. Judge them as insurance:
+
+- Report the P&L given up next to the risk change; never call a skip filter an edge when it costs P&L.
+- Count the **removed days**. A filter that skips a few dozen days is judged on those days, often dominated by a handful of large losses.
+- Drawdown, MAR and other peak-to-trough metrics depend on a single episode. Name the episode (dates, P&L) and say whether the effect survives without it. A block permutation keeps the month of that episode together, so a small p-value on a drawdown metric can still rest on one episode.
+- If the server does not rank or test by a risk objective, say so rather than implying the P&L test covers it.
+
+## Multi-entry blocks
+
+With several entries per day, the filter decides once per day and the entries of a day move together. Trade counts overstate the independent sample; read sample sizes and win rates per day. The server's permutation works on trades, so its cost grows with entries per day; if it times out, report it as not run and propose a day-level permutation for the server.
+
 ## Regime context
 
 A breakdown of block performance by volatility regime shows where the P&L comes from. It is context, not evidence for a filter:

@@ -7,6 +7,8 @@ One JSON object per run. Charts, tables and the verdict are all rendered from it
   "block": "straddle-0dte-0945-atm",
   "strategy": null,
   "field": "vrp.vrp_0945",
+  "purpose": "edge",
+  "granularity": {"entriesPerDay": 1, "removedDays": 820},
   "timing": "close",
   "maxMissedSessions": 1,
   "baseline": {"covered": 1094, "totalPl": 6709, "uncovered": 1, "uncoveredPl": -1147},
@@ -26,6 +28,8 @@ One JSON object per run. Charts, tables and the verdict are all rendered from it
   "significance": {"pValue": 0.55, "pValueHolm": 1.0, "iterations": 499, "blockCount": 53, "seed": 42,
                    "grid": "default percentileSteps", "family": ["vrp.vrp_0945", "vrp.vrp5_0945", "vrp.iv_0945"],
                    "outsideFamily": []},
+  "risk": {"availableFromServer": false, "plCost": null, "maxDrawdownBase": null, "maxDrawdownFiltered": null, "episode": null},
+  "outsideServer": [],
   "regimes": {"source": "analyze_regime_performance", "definitions": {
     "primary":     {"definition": "…", "buckets": [{"regime": "…", "trades": 0, "totalPl": 0, "avgPl": 0, "winRate": 0}]},
     "alternative": {"definition": "…", "buckets": []}}, "rankingHolds": null},
@@ -35,6 +39,8 @@ One JSON object per run. Charts, tables and the verdict are all rendered from it
 ```
 
 Field notes:
+- `purpose`: `edge` or `risk` (step 1). `granularity`: entries per day and days removed at the candidate.
+- `risk`: only server-reported values; `availableFromServer: false` otherwise. `outsideServer`: labelled supplements (method, script path), never used to flip a check.
 - `delta` = kept-trade total P&L minus `baseline.totalPl` (covered trades only).
 - `direction`: `lt` keeps trades with field < threshold, `gt` keeps field > threshold.
 - `eligible`: kept fraction ≥ `rule.minKeptFraction`.

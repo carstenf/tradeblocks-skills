@@ -1,0 +1,33 @@
+[
+  {
+    "skills": ["is-this-filter-real"],
+    "query": "Is skipping days with vrp.vrp_0945 below 2.2 a real filter for block straddle-0dte-0945-atm?",
+    "expected_behavior": [
+      "Checks timing: vrp.vrp_0945 is close-timed and applied from the prior day; passes maxMissedSessions",
+      "Sweeps both directions, states the plateau rule before choosing, flags the narrow region and the U-shape",
+      "Runs one permutation call with the compared vrp fields and reports pValue and pValueHolm for the best threshold",
+      "Shows that removing 2025-04-09 shrinks the improvement by more than half and flags single-day dependence",
+      "Concludes with an evidence-limited verdict that does not call the filter robust"
+    ]
+  },
+  {
+    "skills": ["is-this-filter-real"],
+    "query": "My 11-entry SPX iron condor: should I skip days when VIX z20 > 1.5? I mainly want a smaller drawdown.",
+    "expected_behavior": [
+      "Records the purpose as risk reduction and reads samples in days, not trades",
+      "Reports the P&L cost of the skip next to the risk change, or states that risk metrics are not available from the server",
+      "Checks that enough days are removed and names the drawdown episode the result depends on",
+      "Reports a permutation timeout or refusal as 'not run (<reason>)'; any outside calculation is labelled as a supplement",
+      "Does not call the filter an edge when it costs P&L"
+    ]
+  },
+  {
+    "skills": ["is-this-filter-real"],
+    "query": "Test a filter on today's VIX close for my 09:45 entry.",
+    "expected_behavior": [
+      "Notices that the same-day close is not known at 09:45 and refuses to use it same-day",
+      "Offers the prior-day close (close-timed field applied from the next day) instead",
+      "Does not run a sweep on the look-ahead field"
+    ]
+  }
+]
