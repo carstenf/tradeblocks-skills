@@ -45,6 +45,7 @@ Record with the user:
 - **Family**: every field and variant (lookbacks, scalings) tried or about to be tried. Fix it now; it is the multiple-testing burden and goes into one permutation call in step 6.
 - **Granularity.** The filter decides per *day*. If the block has several entries per day, pass `unit: "day"` on every `filter_curve` call so the server sums each entry date's P&L and counts days. If it refuses with `day_field_varies`, the field changes within a day; use `unit: "trade"`, say so, and read trade counts as overstating the sample.
 - **Objective.** Fix it with the purpose: *edge* → `totalPl` (or `winRate` if stated in advance); *risk* → `sharpe` to select and test, `mar` with the drawdown episode as the "can I live with it" check, `totalPl` for the cost; `maxDrawdown` only descriptively (it rewards near-empty subsets). Why Sharpe: [risk objectives and Kelly sizing](references/filter-robustness.md#risk-objectives-and-kelly-sizing). Risk objectives require `unit: "day"`. Changing the objective after seeing results is another search; count it in the family.
+- **Minimum improvement.** State before looking the smallest change that would matter for trading (e.g. 0.1 Sharpe, or a P&L share). A best eligible Δ below it counts as "no improvement" in steps 4 and 7c.
 
 ### 2. Timing, coverage, freshness (core)
 
@@ -109,7 +110,7 @@ The peak is the last date before the trough with `eq = peak`. Then run the candi
 
 **7b. Per year.** `filter_curve` with `mode: <candidate direction>`, `thresholds: [candidate]`; `perYear` applies the full-sample threshold to each year (consistency, not independent evidence). Mark partial years and `lowSampleWarning` rows.
 
-**7c. Out-of-sample split.** Choose the candidate on the first half only (`endDate`, same rule and objective), evaluate that fixed threshold and direction on the second half (`startDate`); for a risk purpose report the second half's drawdown (or MAR) change and P&L cost, not a per-trade Δ. One split, not walk-forward; a first half that picks the other direction, or finds no eligible threshold that beats its baseline, is a strong warning.
+**7c. Out-of-sample split.** Choose the candidate on the first half only (`endDate`, same rule and objective), evaluate that fixed threshold and direction on the second half (`startDate`); for a risk purpose report the second half's drawdown (or MAR) change and P&L cost, not a per-trade Δ. One split, not walk-forward; a first half that picks the other direction, or finds no eligible threshold that beats its baseline by the minimum improvement, is a strong warning.
 
 **7d. Regime context (descriptive).** If regimes matter, run `filter_curve` with `thresholds: [candidate]`, `groupBy: <regime field>` and `bins` fixed before looking (omitted: quartiles); `perGroup` shows the filter per regime. Check one alternative definition chosen in advance and say whether the ranking holds. Small groups are anecdotes; nothing here is selection-adjusted.
 
