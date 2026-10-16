@@ -14,7 +14,7 @@
     "skills": ["is-this-filter-real"],
     "query": "My 11-entry SPX iron condor: should I skip days when VIX z20 > 1.5? I mainly want a smaller drawdown.",
     "expected_behavior": [
-      "Records the purpose as risk reduction and runs filter_curve with unit day and a risk objective (maxDrawdown, mar or sharpe) plus totalPl for the cost",
+      "Records the purpose as risk reduction and runs filter_curve with unit day, selecting and permuting with sharpe, checking with mar and the drawdown episode, and reporting the totalPl cost",
       "Does not adopt the risk objective's bestThreshold when it keeps too few days; applies the plateau eligibility floor",
       "On a flat drawdown region, breaks the tie by lowest P&L cost and states it; flags a permutation whose best threshold is not eligible as not testing the candidate",
       "Checks that enough days are removed and names the drawdown episode the result depends on",

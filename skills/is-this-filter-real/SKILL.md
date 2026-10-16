@@ -44,7 +44,7 @@ Record with the user:
 - Block, strategy, candidate field, direction, entry time (a field is usable only if known before entry), and the economic reason it should matter.
 - **Family**: every field and variant (lookbacks, scalings) tried or about to be tried. Fix it now; it is the multiple-testing burden and goes into one permutation call in step 6.
 - **Granularity.** The filter decides per *day*. If the block has several entries per day, pass `unit: "day"` on every `filter_curve` call so the server sums each entry date's P&L and counts days. If it refuses with `day_field_varies`, the field changes within a day; use `unit: "trade"`, say so, and read trade counts as overstating the sample.
-- **Objective.** Fix it with the purpose: *edge* → `totalPl` (or `winRate` if stated in advance); *risk* → `maxDrawdown`, `mar` or `sharpe`, plus `totalPl` for the cost. Risk objectives require `unit: "day"`. Changing the objective after seeing results is another search; count it in the family.
+- **Objective.** Fix it with the purpose: *edge* → `totalPl` (or `winRate` if stated in advance); *risk* → `sharpe` to select and test, `mar` with the drawdown episode as the "can I live with it" check, `totalPl` for the cost; `maxDrawdown` only descriptively (it rewards near-empty subsets). Why Sharpe: [risk objectives and Kelly sizing](references/filter-robustness.md#risk-objectives-and-kelly-sizing). Risk objectives require `unit: "day"`. Changing the objective after seeing results is another search; count it in the family.
 
 ### 2. Timing, coverage, freshness (core)
 
@@ -68,7 +68,7 @@ Apply the [plateau rule](../optimize/references/plateau-and-verdict.md#the-plate
 
 `bestThreshold` has no kept-fraction floor: with `maxDrawdown` the best is often a threshold that keeps a few dozen days. Never take it as the candidate; apply the eligibility floor above. `perYear` in a sweep belongs to `bestThreshold`; per-year values for the candidate come from step 7b. Threshold rows carry `objectiveDelta` only for objectives other than `totalPl`.
 
-**Risk purpose.** Sweep with the risk objective and again with `totalPl`; report the candidate's drawdown (`maxDrawdown`), MAR or Sharpe next to its P&L cost. `mar` needs the block's starting capital (refusal `mar_requires_capital`) and is `null` with `marUnstable` on samples under about 90 days; report either as such. A drawdown that drops the same amount for many thresholds comes from one episode; name it (step 7a).
+**Risk purpose.** Sweep with `sharpe` (plateau and candidate), then evaluate the candidate under `mar`, `maxDrawdown` and `totalPl`; report Sharpe, MAR and drawdown next to the P&L cost. If MAR ranks the candidate very differently from Sharpe, the difference is usually one episode; say so. `mar` needs the block's starting capital (refusal `mar_requires_capital`) and is `null` with `marUnstable` on samples under about 90 days; report either as such. A drawdown that drops the same amount for many thresholds comes from one episode; name it (step 7a).
 
 ### 5. Cross-check with suggest_filters
 
@@ -82,7 +82,7 @@ One `filter_curve` call per objective with `fields: [whole family]` (up to the s
 - **Check what was tested.** If that best threshold is not eligible (e.g. a `maxDrawdown` best that keeps a few dozen days), the p-value tests a different, degenerate filter: flag the check WARN at best, never PASS for the candidate.
 - Work limits: the server refuses an over-budget request by name before running (`permutation_work_limit` per field, `permutation_request_work_limit` per request), with `estimatedWork` and `workLimit`. Keep the family in one call; use the default grid, then set `iterations` to about `499 × workLimit / estimatedWork` (the smaller of both limits) and retry. Risk objectives on large multi-entry blocks may fit only 50–100 iterations; the smallest possible p is then `1 / (iterations + 1)`, so state it. Report the final settings. If the family exceeds the field limit, report its full size and which fields were left out.
 - Named refusals (`too_few_trades`, `too_few_blocks`, `no_eligible_threshold`, `objective_requires_day`, `mar_requires_capital`, work limits) are reported as "not run (<reason>)".
-- With several objectives (risk purpose: risk objective and `totalPl`), report each; they are separate tests, so do not call the filter significant because one of them is.
+- Risk purpose: run the permutation with `sharpe`; `mar` and `totalPl` only if the work limit allows, as extra tests. With several objectives, report each; they are separate tests, so do not call the filter significant because one of them is.
 
 ### 7. Robustness
 

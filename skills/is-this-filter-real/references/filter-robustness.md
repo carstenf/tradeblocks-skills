@@ -49,6 +49,16 @@ Many filters are meant to skip rare bad days, not to raise P&L. They usually cos
 - Test the risk claim with the risk objective (`unit: "day"`), not with the P&L test. The server's `bestThreshold` has no kept floor, so a drawdown best often keeps only a few dozen days; apply the plateau eligibility floor.
 - If many thresholds cut the drawdown by the same amount, one episode sets it. A low p-value then says the filter avoids that episode, not that it avoids drawdowns in general.
 
+## Risk objectives and Kelly sizing
+
+For a risk purpose the skill selects with Sharpe and checks with MAR:
+
+- **Sharpe** uses every day. Under a normal approximation the growth rate at a fixed fraction `c` of Kelly is about `c · (1 − c/2) · Sharpe²` per period, so at ¼ or ⅛ Kelly filters rank exactly as by Sharpe; the fraction sets the size, not the choice of filter.
+- **MAR** divides by one number, the largest drawdown, so a filter that avoids that one episode wins in sample whether or not it does anything else. At a fixed Kelly fraction the expected drawdown in percent depends mostly on the fraction, so MAR ranks like Sharpe in expectation but is much noisier on one history. Use it to judge whether the drawdown is bearable, together with the episode's dates.
+- **maxDrawdown** alone falls as fewer days are kept; never select by it.
+- **Fat left tails.** Short-premium P&L has rare large losses, so Kelly from the actual distribution is smaller than the Sharpe approximation; fractional Kelly is the buffer. Report the worst day (step 7a) next to the planned size.
+- **Not available from the server:** Sortino (downside deviation, which suits left-skewed P&L better than Sharpe) and Kelly for the filtered subset (`get_position_sizing` takes no filter and no day unit). Report them as not run.
+
 ## Multi-entry blocks
 
 With several entries per day, the filter decides once per day and the entries of a day move together. Trade counts overstate the independent sample. Use `unit: "day"`: the server sums P&L per entry date, counts days and permutes days. It refuses with `day_field_varies` if the field changes within a day; then the field is not a day filter and trade-level results must be read with that caveat.
