@@ -16,6 +16,7 @@
     "expected_behavior": [
       "Records the purpose as risk reduction and runs filter_curve with unit day and a risk objective (maxDrawdown, mar or sharpe) plus totalPl for the cost",
       "Does not adopt the risk objective's bestThreshold when it keeps too few days; applies the plateau eligibility floor",
+      "On a flat drawdown region, breaks the tie by lowest P&L cost and states it; flags a permutation whose best threshold is not eligible as not testing the candidate",
       "Checks that enough days are removed and names the drawdown episode the result depends on",
       "Reports the permutation iterations actually run (work limit) and any named refusal as 'not run (<reason>)'",
       "Does not call the filter an edge when it costs P&L"

@@ -1,7 +1,7 @@
 ---
 name: is-this-filter-real
 description: Tests whether an entry or skip filter on one field (a market field or an imported daily dataset column) is a robust edge, a risk reducer, or an in-sample fit. Sweeps thresholds, applies the plateau rule, runs a selection-adjusted block permutation with Holm across compared fields, checks single-day dependence, per-year stability and an out-of-sample split, and delivers an evidence-limited verdict. Use when asked "is this filter real?", "does X work as an entry filter", "should I skip days when X", or before adopting a filter found by suggest_filters or filter_curve.
-compatibility: Requires a TradeBlocks MCP server whose filter_curve supports unit "day", risk objectives (sharpe, mar, maxDrawdown), groupBy/bins, bestThreshold, perYear and a selection-adjusted permutation, and whose find_predictive_fields supports rank methods (TradeBlocks 4.5 or later; with 4.4 the day unit, risk objectives and regime groups are reported as not run). Python 3.9+ with matplotlib is optional and only renders PNG charts for clients that cannot draw charts.
+compatibility: Requires a TradeBlocks MCP server whose filter_curve supports unit "day", risk objectives (sharpe, mar, maxDrawdown), groupBy/bins and a selection-adjusted permutation, and whose find_predictive_fields supports rank methods (TradeBlocks 4.5 or later; with 4.4 the day unit, risk objectives and regime groups are reported as not run). Python 3.9+ with matplotlib is optional and only renders PNG charts for clients that cannot draw charts.
 metadata:
   author: carsten
   version: "1.2.0"
@@ -54,31 +54,33 @@ Record with the user:
 
 ### 3. Relationship
 
-`find_predictive_fields` with `method: "spearman"` (rank correlation suits fat-tailed P&L), optionally `"pearson"` and `"kendall"` for comparison; `get_field_statistics` for the distribution. A weak correlation does not rule out a tail filter, but then the filter must earn its case below.
+`find_predictive_fields` with `method: "spearman"` (rank correlation suits fat-tailed P&L), optionally `"pearson"`; `"kendall"` is refused on large blocks (`kendall_pair_work_limit`), report it as not run. The ranking is per trade and also lists outcome fields (P&L, win flags); read only the candidate family. `get_field_statistics` for the distribution. A weak correlation does not rule out a tail filter, but then the filter must earn its case below.
 
 ### 4. Sweep and plateau rule (core)
 
-`filter_curve` on the candidate, `mode: "both"`, the step 1 `objective` and `unit`, a dense grid (e.g. every 5th percentile), no permutation. Per threshold and direction: Δ of the objective against `baseline` (the server reports `objectiveDelta` for risk objectives; for `totalPl` use `totalPl(kept) − baseline.totalPl`), kept and removed counts.
+`filter_curve` on the candidate, `mode: "both"`, the step 1 `objective` and `unit`, a dense grid (e.g. every 5th percentile), no permutation. The permutation in step 6 usually has to run on the default grid; say that the two grids differ. Per threshold and direction: Δ of the objective against `baseline` (the server reports `objectiveDelta` for risk objectives; for `totalPl` use `totalPl(kept) − baseline.totalPl`), kept and removed counts.
 
 Apply the [plateau rule](../optimize/references/plateau-and-verdict.md#the-plateau-rule), stating the rule before choosing. Filter defaults, to be overridden only with a stated reason:
 - Eligible thresholds keep enough trades **and** remove enough days to judge: about 20 % kept (the floor `suggest_filters` uses) and about 30 removed days (the minimum sample in [optimization.md](../optimize/references/optimization.md)). Skip filters usually fail the second condition first.
-- Stable region: adjacent eligible thresholds, same direction, within a stated tolerance of the best Δ (e.g. 25 %); recheck with a looser one (e.g. 50 %). Candidate = the middle actual threshold of the widest region.
+- Stable region: adjacent eligible thresholds, same direction, within a stated tolerance of the best eligible Δ (e.g. 25 %); recheck with a looser one (e.g. 50 %). Candidate = the middle actual threshold of the widest region (even count: of the two middle ones, the one that removes fewer days).
+- **Flat risk region.** If the risk objective is (nearly) identical across the region, one episode sets it and the middle threshold is arbitrary. Then choose, within the region, the threshold with the smallest P&L cost, state this tie-break, and report the middle one too.
 - Flag a boundary winner, a cliff, a region of one or two thresholds, and a **U-shape** (both tails beat the baseline; report both).
 
-`bestThreshold` has no kept-fraction floor: with `maxDrawdown` the best is often a threshold that keeps a few dozen days. Never take it as the candidate; apply the eligibility floor above.
+`bestThreshold` has no kept-fraction floor: with `maxDrawdown` the best is often a threshold that keeps a few dozen days. Never take it as the candidate; apply the eligibility floor above. `perYear` in a sweep belongs to `bestThreshold`; per-year values for the candidate come from step 7b. Threshold rows carry `objectiveDelta` only for objectives other than `totalPl`.
 
 **Risk purpose.** Sweep with the risk objective and again with `totalPl`; report the candidate's drawdown (`maxDrawdown`), MAR or Sharpe next to its P&L cost. `mar` needs the block's starting capital (refusal `mar_requires_capital`) and is `null` with `marUnstable` on samples under about 90 days; report either as such. A drawdown that drops the same amount for many thresholds comes from one episode; name it (step 7a).
 
 ### 5. Cross-check with suggest_filters
 
-`suggest_filters` with `fields: [<candidate>]` and the step 1 objective if the server accepts it (else `totalPl`, stated): same direction, threshold inside the region? Report `keptFraction`, `confidence` (sample-size support, not significance) and warnings. Report disagreements, don't pick the nicer result.
+`suggest_filters` with `fields: [<candidate>]` and the step 1 objective if the server accepts it (else `totalPl`, stated). It works per trade (no `unit`), so its threshold is a trade percentile; compare direction and rough location only: same direction, threshold inside the region? Report `keptFraction`, `confidence` (sample-size support, not significance) and warnings. Report disagreements, don't pick the nicer result.
 
 ### 6. Selection-adjusted permutation (core)
 
 One `filter_curve` call per objective with `fields: [whole family]` (up to the server's field limit), the step 4 `mode`, `unit` and `objective`, `permutation: {"iterations": 499, "block": "month", "seed": 42}`. Each shuffle reruns the whole sweep and keeps its best; months are shuffled as blocks; Holm covers the fields of this call.
 
 - Report per field `pValue`, `pValueHolm`, `iterations`, `blockCount`, `seed` and the grid. With several fields the Holm value counts. The p-value belongs to the **best threshold of that grid**, not to the plateau candidate.
-- Work limits: the server refuses an over-budget request by name before running. Keep the family in one call; use the default grid, then lower `iterations`. Risk objectives on large multi-entry blocks may allow only about 80–100 iterations; then the smallest possible p is about 0.01, so state it. Report the final settings. If the family exceeds the field limit, report its full size and which fields were left out.
+- **Check what was tested.** If that best threshold is not eligible (e.g. a `maxDrawdown` best that keeps a few dozen days), the p-value tests a different, degenerate filter: flag the check WARN at best, never PASS for the candidate.
+- Work limits: the server refuses an over-budget request by name before running (`permutation_work_limit` per field, `permutation_request_work_limit` per request), with `estimatedWork` and `workLimit`. Keep the family in one call; use the default grid, then set `iterations` to about `499 × workLimit / estimatedWork` (the smaller of both limits) and retry. Risk objectives on large multi-entry blocks may fit only 50–100 iterations; the smallest possible p is then `1 / (iterations + 1)`, so state it. Report the final settings. If the family exceeds the field limit, report its full size and which fields were left out.
 - Named refusals (`too_few_trades`, `too_few_blocks`, `no_eligible_threshold`, `objective_requires_day`, `mar_requires_capital`, work limits) are reported as "not run (<reason>)".
 - With several objectives (risk purpose: risk objective and `totalPl`), report each; they are separate tests, so do not call the filter significant because one of them is.
 
@@ -91,11 +93,23 @@ SELECT date_opened, SUM(pl) AS day_pl FROM trades.trade_data
 WHERE block_id = '<blockId>' GROUP BY date_opened ORDER BY ABS(day_pl) DESC LIMIT 3
 ```
 
-For the top day `d`, run `filter_curve` with `thresholds: [candidate]` on `[start, d−1]` and `[d+1, end]` and add the two Δ (additive over disjoint ranges for `totalPl`; drawdown, MAR and Sharpe are not additive, so for those compare the full-range value with and without the day removed by `endDate`/`startDate` around it and say which episode sets the drawdown). Report Δ with and without `d` and whether the filter removes `d`. If Δ without `d` is near zero or below half, the filter mostly avoids one day. For drawdown-based claims, name the episode the drawdown comes from.
+For the top day `d`, run `filter_curve` with `thresholds: [candidate]` on `[start, d−1]` and `[d+1, end]` and add the two Δ (additive over disjoint ranges, `totalPl` only).
+
+For a drawdown claim, find the episode that sets the baseline drawdown (peak and trough of cumulative daily P&L):
+
+```sql
+WITH d AS (SELECT date_opened, SUM(pl) AS p FROM trades.trade_data
+           WHERE block_id = '<blockId>' GROUP BY 1),
+e AS (SELECT date_opened, SUM(p) OVER (ORDER BY date_opened) AS eq FROM d),
+m AS (SELECT date_opened, eq, MAX(eq) OVER (ORDER BY date_opened) AS peak FROM e)
+SELECT date_opened AS trough, eq - peak AS drawdown FROM m ORDER BY drawdown LIMIT 1
+```
+
+The peak is the last date before the trough with `eq = peak`. Then run the candidate on `[start, peak−1]` and `[trough+1, end]`: drawdown and MAR are not additive, so report each range's change separately and say whether any of the drawdown cut remains outside the episode. A date range cannot drop a single day. Report Δ with and without `d` and whether the filter removes `d`. If Δ without `d` is near zero or below half, the filter mostly avoids one day. For drawdown-based claims, name the episode the drawdown comes from.
 
 **7b. Per year.** `filter_curve` with `mode: <candidate direction>`, `thresholds: [candidate]`; `perYear` applies the full-sample threshold to each year (consistency, not independent evidence). Mark partial years and `lowSampleWarning` rows.
 
-**7c. Out-of-sample split.** Choose the candidate on the first half only (`endDate`, same rule and objective), evaluate that fixed threshold and direction on the second half (`startDate`). One split, not walk-forward; a first half that picks the other direction, or finds no eligible threshold that beats its baseline, is a strong warning.
+**7c. Out-of-sample split.** Choose the candidate on the first half only (`endDate`, same rule and objective), evaluate that fixed threshold and direction on the second half (`startDate`); for a risk purpose report the second half's drawdown (or MAR) change and P&L cost, not a per-trade Δ. One split, not walk-forward; a first half that picks the other direction, or finds no eligible threshold that beats its baseline, is a strong warning.
 
 **7d. Regime context (descriptive).** If regimes matter, run `filter_curve` with `thresholds: [candidate]`, `groupBy: <regime field>` and `bins` fixed before looking (omitted: quartiles); `perGroup` shows the filter per regime. Check one alternative definition chosen in advance and say whether the ranking holds. Small groups are anecdotes; nothing here is selection-adjusted.
 

@@ -33,7 +33,10 @@ def threshold_curve(r, out):
     region = set(r.get("region", {}).get("thresholds") or [])
     centre_dir = (r.get("centre") or {}).get("direction")
     for direction in ("lt", "gt"):
-        pts = sorted((p for p in r["curve"] if p["direction"] == direction), key=lambda p: p["threshold"])
+        pts = sorted((p for p in r["curve"] if p["direction"] == direction and p.get("delta") is not None),
+                     key=lambda p: p["threshold"])
+        seen = set()
+        pts = [p for p in pts if not (p["threshold"] in seen or seen.add(p["threshold"]))]
         if not pts:
             continue
         xs = [p["threshold"] for p in pts]
@@ -61,7 +64,8 @@ def threshold_curve(r, out):
     sig = r.get("significance") or {}
     p = sig.get("pValueHolm") if len(sig.get("family") or []) > 1 else sig.get("pValue")
     if p is not None:
-        ax.text(0.99, 0.98, f"selection-adjusted p = {p:.3g}" + (" (Holm)" if len(sig.get("family") or []) > 1 else ""),
+        obj = sig.get("objective") or "totalPl"
+        ax.text(0.99, 0.98, f"selection-adjusted p ({obj}) = {p:.3g}" + (" (Holm)" if len(sig.get("family") or []) > 1 else ""),
                 transform=ax.transAxes, ha="right", va="top", fontsize=8)
     _title(fig, r, "threshold curve")
     fig.tight_layout()
@@ -76,8 +80,10 @@ def per_year(r, out):
     fig, ax = plt.subplots(figsize=(7, 4), dpi=160)
     xs = list(range(len(years)))
     w = 0.38
-    ax.bar([x - w / 2 for x in xs], [y["deltaBest"] for y in years], w, color=COLORS["neutral"], label="best")
-    ax.bar([x + w / 2 for x in xs], [y["deltaCentre"] for y in years], w, color=COLORS["centre"], label="centre")
+    best = [y.get("deltaBest") for y in years]
+    if any(v is not None for v in best):
+        ax.bar([x - w / 2 for x in xs], [v or 0 for v in best], w, color=COLORS["neutral"], label="best")
+    ax.bar([x + w / 2 for x in xs], [y.get("deltaCentre") or 0 for y in years], w, color=COLORS["centre"], label="centre")
     ax.set_xticks(xs, [f"{y['year']}\n(n={y['covered']})" for y in years], fontsize=8)
     ax.axhline(0, color=COLORS["neutral"], lw=0.8)
     ax.set_ylabel("Δ total P&L ($)")
@@ -109,9 +115,15 @@ def robustness(r, out):
     halves = [(k, oos.get(f)) for k, f in (("1st half (chosen here)", "isDeltaPerKept"),
                                            ("2nd half (fixed threshold)", "oosDeltaPerKept"))]
     halves = [(k, v) for k, v in halves if v is not None]
+    halves_label = "Δ per kept trade ($)"
+    if not halves:  # risk purpose: second-half changes in dollars
+        halves = [(k, oos.get(f)) for k, f in (("2nd half: risk change", "oosObjectiveDelta"),
+                                               ("2nd half: P&L change", "oosPlCost"))]
+        halves = [(k, v) for k, v in halves if v is not None]
+        halves_label = "2nd half, fixed threshold ($)"
     if not totals and not halves:
         return
-    panels = [p for p in ((totals, "Δ total P&L, centre threshold ($)"), (halves, "Δ per kept trade ($)")) if p[0]]
+    panels = [p for p in ((totals, "Δ total P&L, centre threshold ($)"), (halves, halves_label)) if p[0]]
     fig, axes = plt.subplots(1, len(panels), figsize=(7.5, 3.4), dpi=160, squeeze=False)
     for ax, (bars, label) in zip(axes[0], panels):
         _hbars(ax, bars, label)
