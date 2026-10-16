@@ -26,7 +26,7 @@ Dataset values attach as of the last observation before the trade; a missing obs
 
 One chronological split guards against choosing the threshold with knowledge of the later period. It is weak evidence: one split, one history, different regimes in each half. A positive second half supports the candidate; a negative one, or a first half that picks the opposite direction, is a strong warning.
 
-## How the permutation works (TradeBlocks 4.4)
+## How the permutation works (TradeBlocks 4.5)
 
 `filter_curve` with `permutation` answers: how often does the **best** threshold of a sweep on shuffled outcomes do at least as well as the observed best?
 
@@ -35,6 +35,7 @@ One chronological split guards against choosing the threshold with knowledge of 
 - **Add-one correction**, `(exceedances + 1) / (iterations + 1)`: with 499 iterations the smallest possible p is 0.002. Results are deterministic for a given seed.
 - **Holm** adjusts across the fields of **one request**. Fields tried in other calls are outside the family; count them as extra burden.
 - The p-value belongs to the best threshold of the grid in that call. It does not test the plateau centre or a threshold chosen elsewhere.
+- With `unit: "day"` the server shuffles daily P&L; risk objectives (`maxDrawdown`, `mar`, `sharpe`) are recomputed for every shuffled sweep, which is far more expensive, so fewer iterations fit the work limit. The add-one floor is then `1 / (iterations + 1)`.
 
 A large p (e.g. 0.5) means sweeps on shuffled data routinely find a threshold as good as the observed one: the best threshold is what searching produces, not evidence of an edge.
 
@@ -45,15 +46,16 @@ Many filters are meant to skip rare bad days, not to raise P&L. They usually cos
 - Report the P&L given up next to the risk change; never call a skip filter an edge when it costs P&L.
 - Count the **removed days**. A filter that skips a few dozen days is judged on those days, often dominated by a handful of large losses.
 - Drawdown, MAR and other peak-to-trough metrics depend on a single episode. Name the episode (dates, P&L) and say whether the effect survives without it. A block permutation keeps the month of that episode together, so a small p-value on a drawdown metric can still rest on one episode.
-- If the server does not rank or test by a risk objective, say so rather than implying the P&L test covers it.
+- Test the risk claim with the risk objective (`unit: "day"`), not with the P&L test. The server's `bestThreshold` has no kept floor, so a drawdown best often keeps only a few dozen days; apply the plateau eligibility floor.
+- If many thresholds cut the drawdown by the same amount, one episode sets it. A low p-value then says the filter avoids that episode, not that it avoids drawdowns in general.
 
 ## Multi-entry blocks
 
-With several entries per day, the filter decides once per day and the entries of a day move together. Trade counts overstate the independent sample; read sample sizes and win rates per day. The server's permutation works on trades, so its cost grows with entries per day; if it times out, report it as not run and propose a day-level permutation for the server.
+With several entries per day, the filter decides once per day and the entries of a day move together. Trade counts overstate the independent sample. Use `unit: "day"`: the server sums P&L per entry date, counts days and permutes days. It refuses with `day_field_varies` if the field changes within a day; then the field is not a day filter and trade-level results must be read with that caveat.
 
 ## Regime context
 
-A breakdown of block performance by volatility regime shows where the P&L comes from. It is context, not evidence for a filter:
+A breakdown by volatility regime (`filter_curve` `groupBy` + `bins` → `perGroup`, or `analyze_regime_performance`) shows where the P&L comes from. It is context, not evidence for a filter:
 
 - Fix the regime definition (lookback, bucket edges) before looking; a definition chosen after seeing the result is another search.
 - Check one alternative definition chosen in advance. If the ranking of regimes changes, the regime story depends on the definition; report it that way.
