@@ -25,6 +25,17 @@ For a saved backtest call OO's `get_saved_backtest` with `savedBacktestId`; for 
 
 Use only OO's own reported source range for the curve, **never trade dates**. A saved backtest or portfolio without its source range refuses with `MISSING_CURVE_RANGE`. `get_backtest_results` may have no range; then its trade-only capture remains available and verification names `curveMissingReason`. With a range, call `get_equity_curve` using `{ parameters: { savedBacktestId: <same ID>, seriesStart: <first date>, seriesEnd: <last date> } }` (use `savedPortfolioId` for a saved portfolio, or `runId` for a ranged run). Cover from `rangeStart` through `rangeEnd` with adjacent, disjoint calendar windows. End each window at the earlier of `rangeEnd` and the date exactly two calendar years after its start; start the next on the **following calendar day**. The final window must include `rangeEnd`. Never ask for a window longer than two years, and never infer coverage from a preview: the hook saves the raw response. Stop on a named hook failure.
 
+## Large logs: page with a script instead of model turns
+
+Every 100-trade page is one model turn, so a 24,000-trade log takes 241 turns. When the OO MCP server is also reachable over HTTP from this machine (`OO_MCP_URL`, with `OO_MCP_TOKEN` or an injecting `HTTP_PROXY`), `scripts/oo-pull.mjs` makes the same calls itself: headline, every page with the fixed sort and `limit: 100`, and the curve windows. It records each response through this capture's hook and runs `verify`, then prints the verification summary. It waits about 1.1 s between calls (OO allows 60 a minute).
+
+```bash
+node "${CLAUDE_SKILL_DIR}/../../scripts/oo-pull.mjs" --saved <savedBacktestId> --dry-run
+node "${CLAUDE_SKILL_DIR}/../../scripts/oo-pull.mjs" --saved <savedBacktestId> [--strategy "<chosen name>"]
+```
+
+Use `--run` or `--portfolio` for the other sources. A bare run reports no range, so save it first when the daily curve is needed. A refusal stops the pull and keeps the capture for inspection; never import an unverified capture. Then continue with step 4.
+
 ## 3. Stop and verify BEFORE import
 
 For a saved portfolio, use the snapshot's member labels; do not ask for or pass one chosen Strategy name for the whole portfolio. For a backtest or run, tell the user the default Strategy: OO's per-trade strategy when supplied, otherwise the saved backtest's headline name; for a nameless run, the Strategy stays empty and TradeBlocks names the trades after the new block's ID. Ask whether their live reporting log uses a different strategy name. Only if they choose one, pass it explicitly as a single line (verification refuses a line break with `INVALID_STRATEGY`, because TradeBlocks `import_csv` cannot read one) (this replaces any OO per-trade names, which remain in the verification provenance):

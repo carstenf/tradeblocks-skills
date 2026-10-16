@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **`oo-pull` script for oo-capture.** `scripts/oo-pull.mjs` runs oo-capture's paging loop as a script instead of model turns: it calls the OO MCP server over HTTP (`OO_MCP_URL`, bearer token or injecting proxy), records every response through the capture hook and runs `verify`. A 24,044-trade saved backtest took 245 OO calls (headline, 241 pages, 3 curve windows), about five minutes and no model turns per page, verified to the cent with its 1,097-day curve. Tests run it against a local OO mock.
+
 ## 4.0.0
 
 Released with [TradeBlocks 4.0.0](https://github.com/tradeblocks-org/tradeblocks/blob/master/releases/v4.0.0.md) and Option Omega's MCP server. The plugin version now follows TradeBlocks' major version. Existing installs pinned to 1.0.0 update to this release.
