@@ -21,7 +21,13 @@ COLORS = {"lt": "#2a6fdb", "gt": "#d9822b", "best": "#c0392b", "centre": "#1e844
 
 
 def _money(v):
-    return f"{v:,.0f}"
+    return f"{v:,.0f}" if abs(v) >= 100 else f"{v:.3g}"
+
+
+def _obj(r):
+    """Risk purpose: plot the objective delta; edge purpose: P&L delta."""
+    o = r.get("objective") or "totalPl"
+    return (o, "objectiveDelta", f"Δ {o} vs covered baseline") if o != "totalPl" else (o, "delta", "Δ total P&L vs covered baseline ($)")
 
 
 def _title(fig, r, view):
@@ -29,23 +35,24 @@ def _title(fig, r, view):
 
 
 def threshold_curve(r, out):
+    obj, key, ylabel = _obj(r)
     fig, ax = plt.subplots(figsize=(7, 4.2), dpi=160)
     region = set(r.get("region", {}).get("thresholds") or [])
     centre_dir = (r.get("centre") or {}).get("direction")
     for direction in ("lt", "gt"):
-        pts = sorted((p for p in r["curve"] if p["direction"] == direction and p.get("delta") is not None),
+        pts = sorted((p for p in r["curve"] if p["direction"] == direction and p.get(key) is not None),
                      key=lambda p: p["threshold"])
         seen = set()
         pts = [p for p in pts if not (p["threshold"] in seen or seen.add(p["threshold"]))]
         if not pts:
             continue
         xs = [p["threshold"] for p in pts]
-        ys = [p["delta"] for p in pts]
+        ys = [p[key] for p in pts]
         label = "keep below threshold" if direction == "lt" else "keep above threshold"
         ax.plot(xs, ys, "-", color=COLORS[direction], lw=1.5, label=label)
-        ax.scatter([p["threshold"] for p in pts if p["eligible"]], [p["delta"] for p in pts if p["eligible"]],
+        ax.scatter([p["threshold"] for p in pts if p["eligible"]], [p[key] for p in pts if p["eligible"]],
                    color=COLORS[direction], s=18, zorder=3)
-        ax.scatter([p["threshold"] for p in pts if not p["eligible"]], [p["delta"] for p in pts if not p["eligible"]],
+        ax.scatter([p["threshold"] for p in pts if not p["eligible"]], [p[key] for p in pts if not p["eligible"]],
                    facecolors="none", edgecolors=COLORS[direction], s=18, zorder=3)
         if direction == centre_dir and region:
             rx = [x for x in xs if x in region]
@@ -57,9 +64,9 @@ def threshold_curve(r, out):
             ax.axvline(c["threshold"], color=COLORS[key], ls="--", lw=1, label=f"{key} {c['threshold']:.3g} ({c['direction']})")
     ax.axhline(0, color=COLORS["neutral"], lw=0.8)
     ax.set_xlabel("threshold")
-    ax.set_ylabel("Δ total P&L vs covered baseline ($)")
+    ax.set_ylabel(ylabel)
     ax.legend(fontsize=7, frameon=False)
-    ax.text(0.01, 0.01, "hollow = keeps < {:.0%} of trades (not eligible)".format(r["rule"]["minKeptFraction"]),
+    ax.text(0.01, 0.01, "hollow = not eligible (kept < {:.0%} or too few removed days)".format(r["rule"]["minKeptFraction"]),
             transform=ax.transAxes, fontsize=7, color=COLORS["neutral"])
     sig = r.get("significance") or {}
     p = sig.get("pValueHolm") if len(sig.get("family") or []) > 1 else sig.get("pValue")
@@ -80,13 +87,19 @@ def per_year(r, out):
     fig, ax = plt.subplots(figsize=(7, 4), dpi=160)
     xs = list(range(len(years)))
     w = 0.38
-    best = [y.get("deltaBest") for y in years]
-    if any(v is not None for v in best):
-        ax.bar([x - w / 2 for x in xs], [v or 0 for v in best], w, color=COLORS["neutral"], label="best")
-    ax.bar([x + w / 2 for x in xs], [y.get("deltaCentre") or 0 for y in years], w, color=COLORS["centre"], label="centre")
+    obj = r.get("objective") or "totalPl"
+    if obj != "totalPl" and any(y.get("objectiveDeltaCentre") is not None for y in years):
+        ax.bar(xs, [y.get("objectiveDeltaCentre") or 0 for y in years], w, color=COLORS["centre"], label="centre")
+        ylabel = f"Δ {obj}"
+    else:
+        best = [y.get("deltaBest") for y in years]
+        if any(v is not None for v in best):
+            ax.bar([x - w / 2 for x in xs], [v or 0 for v in best], w, color=COLORS["neutral"], label="best")
+        ax.bar([x + w / 2 for x in xs], [y.get("deltaCentre") or 0 for y in years], w, color=COLORS["centre"], label="centre")
+        ylabel = "Δ total P&L ($)"
     ax.set_xticks(xs, [f"{y['year']}\n(n={y['covered']})" for y in years], fontsize=8)
     ax.axhline(0, color=COLORS["neutral"], lw=0.8)
-    ax.set_ylabel("Δ total P&L ($)")
+    ax.set_ylabel(ylabel)
     ax.legend(fontsize=8, frameon=False)
     _title(fig, r, "per year")
     fig.tight_layout()
@@ -107,23 +120,36 @@ def _hbars(ax, bars, xlabel):
 
 
 def robustness(r, out):
-    totals = [("full history", (r.get("centre") or {}).get("delta"))]
-    for d in r.get("singleDay") or []:
-        totals.append((f"without {d['date']}", d.get("deltaWithout")))
+    obj = r.get("objective") or "totalPl"
+    risk = obj != "totalPl"
+    totals = []
+    if risk:
+        cd = (r.get("centre") or {}).get("objectiveDelta")
+        totals.append(("full history", cd))
+        for d in r.get("singleDay") or []:
+            w = d.get("objectiveDeltaWithout") or {}
+            for part in ("before", "after"):
+                if isinstance(w, dict) and w.get(part) is not None:
+                    totals.append((f"{part} {d['date']}", w[part]))
+        totals_label = f"Δ {obj}, centre threshold"
+    else:
+        totals.append(("full history", (r.get("centre") or {}).get("delta")))
+        for d in r.get("singleDay") or []:
+            totals.append((f"without {d['date']}", d.get("deltaWithout")))
+        totals_label = "Δ total P&L, centre threshold ($)"
     totals = [(k, v) for k, v in totals if v is not None]
     oos = r.get("oos") or {}
     halves = [(k, oos.get(f)) for k, f in (("1st half (chosen here)", "isDeltaPerKept"),
                                            ("2nd half (fixed threshold)", "oosDeltaPerKept"))]
     halves = [(k, v) for k, v in halves if v is not None]
     halves_label = "Δ per kept trade ($)"
-    if not halves:  # risk purpose: second-half changes in dollars
-        halves = [(k, oos.get(f)) for k, f in (("2nd half: risk change", "oosObjectiveDelta"),
-                                               ("2nd half: P&L change", "oosPlCost"))]
-        halves = [(k, v) for k, v in halves if v is not None]
-        halves_label = "2nd half, fixed threshold ($)"
+    if risk or not halves:  # risk purpose: objective change on the second half only (P&L cost is in the verdict)
+        v = oos.get("oosObjectiveDelta")
+        halves = [("2nd half (fixed threshold)", v)] if v is not None else []
+        halves_label = f"Δ {obj}, 2nd half"
     if not totals and not halves:
         return
-    panels = [p for p in ((totals, "Δ total P&L, centre threshold ($)"), (halves, halves_label)) if p[0]]
+    panels = [p for p in ((totals, totals_label), (halves, halves_label)) if p[0]]
     fig, axes = plt.subplots(1, len(panels), figsize=(7.5, 3.4), dpi=160, squeeze=False)
     for ax, (bars, label) in zip(axes[0], panels):
         _hbars(ax, bars, label)

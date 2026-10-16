@@ -25,8 +25,9 @@ One JSON object per run. Charts, tables and the verdict are all rendered from it
   "region": {"thresholds": [-0.057], "stableUnderTolCheck": true},
   "flags": ["boundary", "u_shape"],
   "suggestFilters": {"rule": "Skip when vrp.vrp_0945 < 2.223", "keptFraction": 0.25, "confidence": "high", "agrees": false},
-  "years": [{"year": 2023, "covered": 250, "keptCentre": 60, "deltaBest": 1200, "deltaCentre": 900}],
-  "singleDay": [{"date": "2025-04-09", "pl": -32085, "keptByCentre": false, "deltaWith": 13033, "deltaWithout": -2000}],
+  "years": [{"year": 2023, "covered": 250, "keptCentre": 60, "deltaBest": 1200, "deltaCentre": 900, "objectiveDeltaCentre": null}],
+  "singleDay": [{"date": "2025-04-09", "pl": -32085, "keptByCentre": false, "deltaWith": 13033, "deltaWithout": -2000,
+                 "objectiveDeltaWithout": null}],
   "oos": {"split": "2024-08-14", "isThreshold": -0.2, "isDirection": "lt", "isDeltaPerKept": 80.1, "oosDeltaPerKept": -12.4,
           "oosPlCost": null, "oosObjectiveDelta": null},
   "significance": {"objective": "totalPl", "pValue": 0.55, "pValueHolm": 1.0, "iterations": 499, "blockCount": 53, "seed": 42,
@@ -50,7 +51,8 @@ Field notes:
 - `best`: the server's `bestThreshold` (no kept floor); `bestEligible`: the best eligible row, which the tolerance is measured against. `rule.tieBreak`: e.g. `"lowest P&L cost in a flat risk region"`.
 - `oos`: per-kept Δ for an edge purpose; `oosPlCost` and `oosObjectiveDelta` for a risk purpose.
 - `direction`: `lt` keeps trades with field < threshold, `gt` keeps field > threshold.
-- `eligible`: kept fraction ≥ `rule.minKeptFraction`.
+- `eligible`: kept fraction ≥ `rule.minKeptFraction` and removed days ≥ `rule.minRemovedDays`.
+- `objectiveDeltaCentre` (years), `objectiveDeltaWithout` (singleDay, `{"before": …, "after": …}` for the two ranges): the risk objective's Δ; `null` for an edge purpose. Charts plot the objective Δ when `objective` is not `totalPl`.
 - `flags`: any of `boundary`, `cliff`, `flat`, `narrow_region`, `u_shape`, `rule_dependent`.
 - `years`: from `filter_curve` `perYear` with `thresholds: [centre]` (step 7b); `deltaBest` may be `null`. Mark partial years and `lowSampleWarning` rows in the verdict.
 - `regimes`: descriptive only, copied from `perGroup` or the server's regime breakdown; `uncovered` holds the group without a regime value; `null` when not run.
