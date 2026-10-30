@@ -46,7 +46,7 @@ Many filters are meant to skip rare bad days, not to raise P&L. They usually cos
 - Report the P&L given up next to the risk change; never call a skip filter an edge when it costs P&L.
 - Count the **removed days**. A filter that skips a few dozen days is judged on those days, often dominated by a handful of large losses.
 - Drawdown, MAR and other peak-to-trough metrics depend on a single episode. Name the episode (dates, P&L) and say whether the effect survives without it. A block permutation keeps the month of that episode together, so a small p-value on a drawdown metric can still rest on one episode.
-- Test the risk claim with the risk objective (`unit: "day"`), not with the P&L test. The server's `bestThreshold` has no kept floor, so a drawdown best often keeps only a few dozen days; apply the plateau eligibility floor.
+- Test the risk claim with the risk objective (`unit: "day"`), not with the P&L test. Without `minKeptFraction` (TradeBlocks 4.6) the server's `bestThreshold` has no kept floor, so a drawdown best often keeps only a few dozen days; pass the floor and still apply the plateau eligibility rule.
 - If many thresholds cut the drawdown by the same amount, one episode sets it. A low p-value then says the filter avoids that episode, not that it avoids drawdowns in general.
 
 ## Risk objectives and Kelly sizing
