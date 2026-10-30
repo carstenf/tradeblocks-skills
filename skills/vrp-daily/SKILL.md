@@ -52,7 +52,7 @@ python3 scripts/vrp_daily.py --check --market-db <data-dir>/market.duckdb --entr
 
 Per day it checks SPX minute bars (at least 80 % of the bars to 16:00 and the entry bar) and the IV source (at least 4 OTM put and 4 OTM call nodes). It prints a summary and the missing items, each naming the skill that fixes it, and exits with code 3 if anything blocks. Half-days (13:00 close) are listed and skipped.
 
-**The skill and script never fetch data.** Relay the missing items to the user and use the named skill only with their agreement: [market-data](../market-data/SKILL.md) for bars (`fetch_bars`) or quotes (`fetch_quotes`), [oo-capture](../oo-capture/SKILL.md) for Option Omega runs - a new backtest uses the user's allowance and needs their consent. Run the preflight again afterwards.
+**The skill and script never fetch data.** Relay the missing items to the user and use the named skill only with their agreement: [market-data](../market-data/SKILL.md) for bars (`fetch_bars`) or quotes (`fetch_quotes`, or `import_option_archive` from a local Parquet archive on TradeBlocks 4.6+; import the full 0DTE chain of each day, since a narrower slice would leave strikes missing for the model-free terms), [oo-capture](../oo-capture/SKILL.md) for Option Omega runs - a new backtest uses the user's allowance and needs their consent. Run the preflight again afterwards.
 
 ### 4. Compute
 
